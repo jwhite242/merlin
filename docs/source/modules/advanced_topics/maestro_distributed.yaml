@@ -1,0 +1,39 @@
+description:
+    name: maestro_distributed
+    description: Sample Maestro spec for bootstrapping Merlin across multiple allocations
+
+env:
+    variables:
+        OUTPUT_PATH: ./maestro_dist
+        MERLIN_SPEC: ./faker_demo.yaml
+        NUM_SAMPLES: 100000
+
+batch:
+    type        : slurm
+    host        : quartz
+    bank        : wbronze
+    queue       : pdebug
+
+study:
+    - name: queue-tasks
+      description: submit tasks to merlin's task broker
+      run:
+          cmd: |
+            merlin run $(MERLIN_SPEC) --vars NUM_SAMPLES=$(NUM_SAMPLES)
+          depends: []
+          
+    - name: start-workers
+      description: Starts workers in allocation to process queued up tasks
+      run:
+          cmd: |
+            echo "Allocation: " $(ALLOCATION)
+            merlin run-workers $(MERLIN_SPEC)
+          depends: [queue-tasks]
+          nodes: 1
+          procs: 36
+          walltime: "00:30:00"
+
+global.parameters:
+    ALLOCATION:
+        values  : [1, 2, 3, 4]
+        label   : ALLOCATION.%%
